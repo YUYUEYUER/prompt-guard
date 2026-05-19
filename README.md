@@ -1,8 +1,17 @@
 # Prompt Guard
 
-一个轻量级、低延迟、兼容性优先的前置提示词拦截网关。
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go)](https://go.dev/)
+[![Deploy](https://img.shields.io/badge/deploy-Docker%20%7C%20systemd-2496ED)](./DEPLOYMENT.md)
+[![Status](https://img.shields.io/badge/focus-lightweight%20gateway-2ea44f)](./README.md)
 
-`Prompt Guard` 运行在 `sub2api`、`new-api` 这类 AI 中转网关之前，只对少量目标接口做请求体检查，命中特定提示词规则时执行拦截、记录或放行。它的设计目标不是做一个“重型内容安全平台”，而是在尽量不影响用户体验的前提下，提供一层足够轻、足够稳的前置保护。
+一个放在 `sub2api`、`new-api` 之前的轻量级提示词拦截网关。
+
+`Prompt Guard` 只检查少量目标接口，在请求转发前提取文本并匹配规则，命中特定提示词时执行拦截、记录或放行。它关注的是低侵入、低延迟、易部署，而不是把链路改造成一个重型内容安全平台。
+
+## 一句话定位
+
+为现有 AI 中转网关增加一层可控、透明、低开销的提示词防护，而不需要重写后端、不需要引入数据库，也不需要牺牲正常请求体验。
 
 ## 项目目标
 
@@ -30,6 +39,33 @@
 - 支持 `/healthz`、`/readyz`、`/metrics`、`/admin/reload`
 - 支持 Docker 和 systemd 最小部署
 
+## Why Prompt Guard
+
+| 方案 | 优点 | 代价 | 适合什么场景 |
+|------|------|------|------|
+| 直接改 `sub2api` / `new-api` | 上下文最完整，少一跳转发 | 升级难、补丁维护重、不同网关要重复改造 | 长期维护自有分叉 |
+| 重型内容安全网关 | 能力覆盖广，规则和审计通常更全 | 部署复杂、成本高、延迟更难控 | 企业级统一安全平台 |
+| `Prompt Guard` | 轻量、透明、易回滚、可前置在多个网关前 | 能力刻意收敛，不做重度语义安全 | 需要快速增加前置提示词拦截 |
+
+`Prompt Guard` 的核心取舍很明确：优先解决“我需要一个够轻、够快、够稳的前置拦截层”，而不是解决所有内容安全问题。
+
+## 部署示意
+
+```mermaid
+flowchart LR
+    A["Client / IDE / Bot"] --> B["Nginx / Caddy / LB"]
+    B --> C["Prompt Guard"]
+    C --> D["sub2api / new-api"]
+    D --> E["OpenAI / Claude / Gemini / Other Upstreams"]
+```
+
+推荐链路：
+
+- 客户端只访问 `Prompt Guard`
+- `Prompt Guard` 只做前置提示词检查和透明转发
+- `sub2api` / `new-api` 继续承担鉴权、计费、路由和上游适配
+- 从网络层阻止客户端绕过 `Prompt Guard` 直连后端
+
 ## 设计原则
 
 ### 1. 轻量优先
@@ -55,13 +91,21 @@
 
 只有命中受控接口时才读取请求体，其他请求走快路径。规则引擎只做轻量文本匹配，不调用外部服务。
 
-## 架构示意
+## 请求处理示意
 
 ```mermaid
-flowchart LR
-    A["Client / IDE / Bot"] --> B["Prompt Guard"]
-    B --> C["sub2api / new-api"]
-    C --> D["OpenAI / Claude / Gemini / Other Upstreams"]
+flowchart TD
+    A["Receive request"] --> B{"Inspected path?"}
+    B -->|No| C["Transparent proxy"]
+    B -->|Yes| D{"JSON body and supported schema?"}
+    D -->|No| E["Skip inspection or fail by policy"]
+    D -->|Yes| F["Extract text fragments"]
+    F --> G["Normalize text"]
+    G --> H["Evaluate rules"]
+    H -->|Block| I["Return policy response"]
+    H -->|Allow / Log / Tag| C
+    C --> J["sub2api / new-api"]
+    J --> K["Upstream provider"]
 ```
 
 ## 项目组成
