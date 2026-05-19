@@ -1,4 +1,4 @@
-module prompt-guard
+module github.com/YUYUEYUER/prompt-guard
 
 go 1.25.0
 

@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	"prompt-guard/internal/config"
+	"github.com/YUYUEYUER/prompt-guard/internal/config"
 )
 
 type Service struct {

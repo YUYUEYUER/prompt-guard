@@ -18,7 +18,7 @@ MVP 建议使用单个 YAML 文件加载全部配置。
 server:
   listen: ":8099"
   read_timeout: 15s
-  write_timeout: 120s
+  write_timeout: 0s
   idle_timeout: 120s
   max_header_bytes: 1048576
 
@@ -58,7 +58,7 @@ audit:
   evidence_max_chars: 80
 
 admin:
-  enabled: true
+  enabled: false
   listen: ""
   bearer_token: ""
 
@@ -121,7 +121,7 @@ rules:
 server:
   listen: ":8099"
   read_timeout: 15s
-  write_timeout: 120s
+  write_timeout: 0s
   idle_timeout: 120s
   max_header_bytes: 1048576
 ```
@@ -132,7 +132,7 @@ server:
 |------|------|------|------|
 | `listen` | string | `:8099` | 主监听地址 |
 | `read_timeout` | duration | `15s` | 请求读取超时 |
-| `write_timeout` | duration | `120s` | 响应写入超时 |
+| `write_timeout` | duration | `0s` | 响应写入超时，`0s` 表示不限制，适合流式响应 |
 | `idle_timeout` | duration | `120s` | Keep-Alive 空闲超时 |
 | `max_header_bytes` | int | `1048576` | Header 最大字节数 |
 
@@ -226,8 +226,7 @@ bypass:
     - "sk-admin-whitelist"
   api_key_prefixes:
     - "sk-internal-"
-  client_ips:
-    - "127.0.0.1"
+  client_ips: []
 ```
 
 用途：
@@ -335,7 +334,7 @@ audit:
 
 ```yaml
 admin:
-  enabled: true
+  enabled: false
   listen: ""
   bearer_token: ""
 ```
@@ -527,9 +526,11 @@ action:
 | `policy.mode` | `dry-run` |
 | `policy.fail_mode` | `fail_open` |
 | `policy.request_body_limit` | `2MB` |
+| `server.write_timeout` | `0s` |
 | `audit.enabled` | `true` |
 | `audit.log_full_text` | `false` |
 | `metrics.enabled` | `true` |
+| `admin.enabled` | `false` |
 | `policy.skip_on_unknown_content_encoding` | `true` |
 | `policy.skip_on_unknown_schema` | `true` |
 | `policy.early_reject_oversize` | `true` |

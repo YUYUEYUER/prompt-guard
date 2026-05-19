@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"prompt-guard/internal/model"
+	"github.com/YUYUEYUER/prompt-guard/internal/model"
 )
 
 var ErrUnknownSchema = errors.New("unknown request schema")

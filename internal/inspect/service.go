@@ -5,11 +5,11 @@ import (
 	"errors"
 	"time"
 
-	"prompt-guard/internal/config"
-	"prompt-guard/internal/engine"
-	"prompt-guard/internal/extractor"
-	"prompt-guard/internal/model"
-	"prompt-guard/internal/normalize"
+	"github.com/YUYUEYUER/prompt-guard/internal/config"
+	"github.com/YUYUEYUER/prompt-guard/internal/engine"
+	"github.com/YUYUEYUER/prompt-guard/internal/extractor"
+	"github.com/YUYUEYUER/prompt-guard/internal/model"
+	"github.com/YUYUEYUER/prompt-guard/internal/normalize"
 )
 
 type Service struct {

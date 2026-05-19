@@ -33,7 +33,7 @@ cp configs/config.example.yaml configs/config.yaml
 
 - `upstream.base_url`
 - `policy.bypass`
-- `admin.bearer_token`
+- `admin.bearer_token`，如果你准备启用 `/admin/reload`
 - `rules`
 
 ## 2. Docker 部署
@@ -60,6 +60,7 @@ docker run -d \
 说明：
 
 - 镜像启动命令默认读取 `/app/configs/config.yaml`
+- 镜像内已经附带一份可启动的默认配置，便于快速验证链路
 - 示例配置文件 `config.example.yaml` 只作为参考，不建议直接生产使用
 - 生产环境应通过挂载方式提供真实配置文件
 
@@ -203,6 +204,11 @@ curl http://127.0.0.1:8099/v1/chat/completions \
 curl -X POST http://127.0.0.1:8099/admin/reload \
   -H "Authorization: Bearer change-me"
 ```
+
+前提：
+
+- 你已经在配置中启用了 `admin.enabled: true`
+- 并为 `admin.bearer_token` 设置了非空值
 
 如果配置合法，服务将原子替换为新配置。
 

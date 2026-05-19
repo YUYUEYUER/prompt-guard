@@ -3,7 +3,7 @@ package extractor
 import (
 	"fmt"
 
-	"prompt-guard/internal/model"
+	"github.com/YUYUEYUER/prompt-guard/internal/model"
 )
 
 type AnthropicMessagesExtractor struct{}

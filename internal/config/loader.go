@@ -68,6 +68,9 @@ func (c *Config) Validate() error {
 	if c.Metrics.Enabled && c.Metrics.Path == "" {
 		return errors.New("metrics.path is required when metrics.enabled is true")
 	}
+	if c.Admin.Enabled && strings.TrimSpace(c.Admin.BearerToken) == "" {
+		return errors.New("admin.bearer_token is required when admin.enabled is true")
+	}
 
 	seenIDs := map[string]struct{}{}
 	for i := range c.Rules {

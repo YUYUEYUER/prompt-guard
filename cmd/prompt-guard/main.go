@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"prompt-guard/internal/server"
-	"prompt-guard/internal/version"
+	"github.com/YUYUEYUER/prompt-guard/internal/server"
+	"github.com/YUYUEYUER/prompt-guard/internal/version"
 )
 
 func main() {

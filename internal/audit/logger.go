@@ -4,8 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	"prompt-guard/internal/config"
-	"prompt-guard/internal/model"
+	"github.com/YUYUEYUER/prompt-guard/internal/config"
+	"github.com/YUYUEYUER/prompt-guard/internal/model"
 )
 
 type Logger struct {

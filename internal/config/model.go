@@ -97,7 +97,7 @@ func DefaultConfig() Config {
 		Server: ServerConfig{
 			Listen:         ":8099",
 			ReadTimeout:    "15s",
-			WriteTimeout:   "120s",
+			WriteTimeout:   "0s",
 			IdleTimeout:    "120s",
 			MaxHeaderBytes: 1 << 20,
 		},
@@ -128,7 +128,7 @@ func DefaultConfig() Config {
 			EvidenceMaxChars: 80,
 		},
 		Admin: AdminConfig{
-			Enabled: true,
+			Enabled: false,
 		},
 		Metrics: MetricsConfig{
 			Enabled: true,

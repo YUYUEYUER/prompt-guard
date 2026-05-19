@@ -133,7 +133,7 @@ cp configs/config.example.yaml configs/config.yaml
 重点修改：
 
 - `upstream.base_url`
-- `admin.bearer_token`
+- `admin.bearer_token`，如果你准备启用 `/admin/reload`
 - `policy.bypass`
 - `rules`
 

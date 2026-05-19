@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"prompt-guard/internal/config"
-	"prompt-guard/internal/model"
+	"github.com/YUYUEYUER/prompt-guard/internal/config"
+	"github.com/YUYUEYUER/prompt-guard/internal/model"
 )
 
 type Engine struct {

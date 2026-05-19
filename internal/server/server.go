@@ -17,14 +17,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"prompt-guard/internal/audit"
-	"prompt-guard/internal/config"
-	"prompt-guard/internal/engine"
-	"prompt-guard/internal/extractor"
-	"prompt-guard/internal/inspect"
-	"prompt-guard/internal/model"
-	"prompt-guard/internal/normalize"
-	"prompt-guard/internal/proxy"
+	"github.com/YUYUEYUER/prompt-guard/internal/audit"
+	"github.com/YUYUEYUER/prompt-guard/internal/config"
+	"github.com/YUYUEYUER/prompt-guard/internal/engine"
+	"github.com/YUYUEYUER/prompt-guard/internal/extractor"
+	"github.com/YUYUEYUER/prompt-guard/internal/inspect"
+	"github.com/YUYUEYUER/prompt-guard/internal/model"
+	"github.com/YUYUEYUER/prompt-guard/internal/normalize"
+	"github.com/YUYUEYUER/prompt-guard/internal/proxy"
 )
 
 type App struct {
@@ -70,7 +70,7 @@ func (a *App) ReadTimeout() time.Duration {
 }
 
 func (a *App) WriteTimeout() time.Duration {
-	return a.serverDuration(func(cfg *config.Config) string { return cfg.Server.WriteTimeout }, 120*time.Second)
+	return a.serverDuration(func(cfg *config.Config) string { return cfg.Server.WriteTimeout }, 0)
 }
 
 func (a *App) IdleTimeout() time.Duration {
@@ -257,14 +257,11 @@ func (a *App) handleProxy(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.metrics.extractErrorsTotal.Add(1)
 		a.logger.Error("failed to read request body", slog.String("error", err.Error()))
-		if state.cfg.Policy.FailMode == "fail_open" {
-			writeJSON(w, http.StatusBadRequest, map[string]any{
-				"error": map[string]string{"type": "bad_request", "message": "unable to read request body"},
-			})
+		if state.cfg.Policy.FailMode == "fail_open" && a.tryFailOpenProxyAfterReadError(state, w, r, requestID, apiKeyHash, err) {
 			return
 		}
 		writeJSON(w, http.StatusBadRequest, map[string]any{
-			"error": map[string]string{"type": "bad_request", "message": "unable to inspect request body"},
+			"error": map[string]string{"type": "bad_request", "message": "unable to read request body"},
 		})
 		return
 	}
@@ -454,4 +451,46 @@ func authorized(r *http.Request, token string) bool {
 	}
 	expected := "Bearer " + token
 	return auth == expected
+}
+
+func (a *App) tryFailOpenProxyAfterReadError(state *runtimeState, w http.ResponseWriter, r *http.Request, requestID string, apiKeyHash string, readErr error) bool {
+	if r.GetBody == nil {
+		a.logger.Warn("fail-open unavailable because request body is not replayable",
+			slog.String("request_id", requestID),
+			slog.String("error", readErr.Error()),
+		)
+		return false
+	}
+
+	replayBody, err := r.GetBody()
+	if err != nil {
+		a.logger.Warn("fail-open unavailable because replay body could not be recreated",
+			slog.String("request_id", requestID),
+			slog.String("error", err.Error()),
+		)
+		return false
+	}
+
+	result := &model.InspectionResult{
+		Decision:   model.DecisionAllow,
+		Skipped:    true,
+		SkipReason: "body_read_error_fail_open",
+		Meta: model.RequestMeta{
+			Path:       r.URL.Path,
+			APIKeyHash: apiKeyHash,
+			ClientIP:   clientIP(r),
+		},
+	}
+	state.audit.LogDecision(requestID, result)
+	a.metrics.inspectedTotal.Add(1)
+	a.metrics.skippedTotal.Add(1)
+
+	r.Body = replayBody
+	if r.ContentLength == 0 && strings.TrimSpace(r.Header.Get("Content-Length")) == "" {
+		r.ContentLength = -1
+	}
+	w.Header().Set(state.cfg.Headers.DecisionHeader, model.DecisionSkip)
+	w.Header().Set(state.cfg.Headers.HitsHeader, "0")
+	state.proxy.ServeHTTP(w, r)
+	return true
 }

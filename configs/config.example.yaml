@@ -1,7 +1,7 @@
 server:
   listen: ":8099"
   read_timeout: "15s"
-  write_timeout: "120s"
+  write_timeout: "0s"
   idle_timeout: "120s"
   max_header_bytes: 1048576
 
@@ -24,8 +24,7 @@ policy:
     api_keys: []
     api_key_prefixes:
       - "sk-internal-"
-    client_ips:
-      - "127.0.0.1"
+    client_ips: []
   skip_on_unknown_content_encoding: true
   skip_on_unknown_schema: true
   early_reject_oversize: true
@@ -43,8 +42,8 @@ audit:
   evidence_max_chars: 80
 
 admin:
-  enabled: true
-  bearer_token: "change-me"
+  enabled: false
+  bearer_token: ""
 
 metrics:
   enabled: true
