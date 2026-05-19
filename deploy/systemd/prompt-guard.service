@@ -1,0 +1,22 @@
+[Unit]
+Description=Prompt Guard lightweight prompt interception gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=promptguard
+Group=promptguard
+WorkingDirectory=/opt/prompt-guard
+ExecStart=/opt/prompt-guard/prompt-guard -config /etc/prompt-guard/config.yaml
+Restart=always
+RestartSec=2
+LimitNOFILE=65535
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/prompt-guard
+
+[Install]
+WantedBy=multi-user.target

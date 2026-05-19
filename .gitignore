@@ -1,0 +1,23 @@
+# binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/prompt-guard
+/prompt-guard.exe
+
+# test / coverage
+*.test
+coverage.out
+
+# local config
+configs/config.yaml
+
+# editor
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
