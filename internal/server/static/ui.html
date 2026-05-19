@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prompt Guard Console</title>
+  <style>
+    :root {
+      --paper: #f4efe8;
+      --paper-strong: rgba(255, 251, 245, 0.92);
+      --ink: #17130f;
+      --muted: #6e645a;
+      --line: rgba(23, 19, 15, 0.15);
+      --accent: #b95834;
+      --accent-soft: rgba(185, 88, 52, 0.12);
+      --green: #1f7a54;
+      --amber: #8f6000;
+      --red: #9c3030;
+      --night: #15110f;
+      --night-soft: #221a16;
+      --shadow: 0 28px 70px rgba(44, 28, 19, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: "Palatino Linotype", Georgia, serif;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(185, 88, 52, 0.16), transparent 24rem),
+        radial-gradient(circle at 100% 100%, rgba(41, 86, 110, 0.12), transparent 28rem),
+        linear-gradient(180deg, #f9f4ec 0%, #efe5d7 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.06;
+      background-image:
+        linear-gradient(rgba(0,0,0,.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,.07) 1px, transparent 1px);
+      background-size: 18px 18px;
+      mix-blend-mode: multiply;
+    }
+
+    .shell {
+      width: min(1440px, calc(100vw - 28px));
+      margin: 18px auto;
+      padding: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.42);
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .card {
+      position: relative;
+      border: 1px solid var(--line);
+      background: var(--paper-strong);
+      padding: 20px;
+      overflow: hidden;
+    }
+
+    .hero .card::after {
+      content: "CONFIG SURFACE";
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      color: var(--muted);
+      font: 11px/1 "Consolas", "Courier New", monospace;
+      letter-spacing: 0.24em;
+    }
+
+    .eyebrow {
+      color: var(--muted);
+      font: 11px/1.2 "Consolas", "Courier New", monospace;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+    }
+
+    h1 {
+      max-width: 11ch;
+      font-size: clamp(2rem, 3vw, 3.3rem);
+      line-height: 0.96;
+      margin-bottom: 16px;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .pill {
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.78);
+      font: 12px/1.2 "Consolas", "Courier New", monospace;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.68);
+      padding: 14px;
+    }
+
+    .stat .label {
+      color: var(--muted);
+      font: 11px/1.2 "Consolas", "Courier New", monospace;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .stat .value {
+      margin-top: 10px;
+      font-size: 1.8rem;
+      line-height: 1;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 0.92fr;
+      gap: 18px;
+    }
+
+    .stack {
+      display: grid;
+      gap: 18px;
+    }
+
+    .row {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 1fr auto auto auto;
+      align-items: end;
+    }
+
+    .row.compact {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 0.92rem;
+    }
+
+    .label-note {
+      color: var(--muted);
+      font: 11px/1.2 "Consolas", "Courier New", monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    input, textarea, select, button {
+      font: inherit;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.88);
+      color: var(--ink);
+      padding: 12px 14px;
+      outline: none;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px var(--accent-soft);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 420px;
+      font: 13px/1.55 "Consolas", "Courier New", monospace;
+      white-space: pre;
+    }
+
+    textarea.short {
+      min-height: 150px;
+    }
+
+    button {
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      color: #f8f1e8;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: transform .15s ease, opacity .15s ease, background .15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--ink);
+      border-color: var(--line);
+    }
+
+    button.ghost {
+      background: rgba(255,255,255,0.72);
+      color: var(--ink);
+      border-color: var(--line);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status {
+      min-height: 22px;
+      color: var(--muted);
+      font: 12px/1.45 "Consolas", "Courier New", monospace;
+      white-space: pre-wrap;
+    }
+
+    .status.ok { color: var(--green); }
+    .status.warn { color: var(--amber); }
+    .status.error { color: var(--red); }
+
+    .mono-block {
+      margin: 0;
+      min-height: 260px;
+      padding: 14px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      background: var(--night);
+      color: #efe7de;
+      font: 12px/1.55 "Consolas", "Courier New", monospace;
+    }
+
+    .backups {
+      display: grid;
+      gap: 10px;
+    }
+
+    .backups-head {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+    }
+
+    .note {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .summary-box {
+      border: 1px solid var(--line);
+      padding: 12px;
+      background: rgba(255,255,255,0.66);
+    }
+
+    .summary-box strong {
+      display: block;
+      margin-bottom: 6px;
+      font: 11px/1.2 "Consolas", "Courier New", monospace;
+      color: var(--muted);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 1080px) {
+      .hero, .layout, .row, .row.compact, .backups-head {
+        grid-template-columns: 1fr;
+      }
+
+      textarea {
+        min-height: 320px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <article class="card">
+        <div class="eyebrow">Prompt Guard / Safe Config Flow</div>
+        <h1>Preview first. Apply with backup. Roll back without panic.</h1>
+        <p>This console runs inside the same gateway process. Model traffic can keep using <code>/v1/*</code>, while config work stays on <code>/ui</code> and <code>/admin/*</code>.</p>
+        <div class="pills">
+          <div class="pill">CONFIG PATH :: {{CONFIG_PATH}}</div>
+          <div class="pill">PREVIEW :: /admin/config/preview</div>
+          <div class="pill">ROLLBACK :: /admin/config/rollback</div>
+        </div>
+      </article>
+
+      <aside class="card">
+        <div class="eyebrow">Auth & Runtime</div>
+        <div class="row compact">
+          <label>
+            <span class="label-note">Bearer Token</span>
+            <input id="tokenInput" type="password" placeholder="Paste admin bearer token">
+          </label>
+          <div class="row compact" style="grid-template-columns: 1fr 1fr;">
+            <button id="saveTokenBtn">Save Token</button>
+            <button id="clearTokenBtn" class="secondary">Clear</button>
+          </div>
+        </div>
+        <div id="authStatus" class="status" style="margin-top:12px;">The page can open without auth, but calls to /admin/* need a valid bearer token.</div>
+        <div class="stats">
+          <div class="stat"><div class="label">Mode</div><div class="value" id="modeValue">-</div></div>
+          <div class="stat"><div class="label">Rules</div><div class="value" id="rulesValue">-</div></div>
+          <div class="stat"><div class="label">Blocked</div><div class="value" id="blockedValue">-</div></div>
+          <div class="stat"><div class="label">Inspected</div><div class="value" id="inspectedValue">-</div></div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="layout">
+      <div class="stack">
+        <section class="card">
+          <div class="eyebrow">Config Editor</div>
+          <div class="row">
+            <label>
+              <span class="label-note">Config Path</span>
+              <input id="configPath" type="text" disabled>
+            </label>
+            <button id="loadConfigBtn" class="ghost">Load</button>
+            <button id="reloadBtn" class="secondary">Reload Runtime</button>
+            <button id="resetEditorBtn" class="secondary">Reset</button>
+          </div>
+          <label style="margin-top:14px;">
+            <span class="label-note">Change Reason</span>
+            <input id="reasonInput" type="text" placeholder="Optional note, e.g. tighten jailbreak regex">
+          </label>
+          <label style="margin-top:14px;">
+            <span class="label-note">YAML</span>
+            <textarea id="configEditor" spellcheck="false" placeholder="Config YAML will appear here"></textarea>
+          </label>
+          <div class="row" style="margin-top:14px;">
+            <div id="configStatus" class="status">Load the current YAML, preview the diff, then apply when the backup path looks safe.</div>
+            <button id="previewBtn" class="ghost">Preview Diff</button>
+            <button id="applyBtn">Apply With Backup</button>
+            <button id="legacySaveBtn" class="secondary">Direct Save</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="eyebrow">Prompt Test</div>
+          <div class="row compact">
+            <label>
+              <span class="label-note">Target Path</span>
+              <select id="testPath">
+                <option value="/v1/chat/completions">/v1/chat/completions</option>
+                <option value="/v1/responses">/v1/responses</option>
+                <option value="/v1/messages">/v1/messages</option>
+              </select>
+            </label>
+            <label>
+              <span class="label-note">Scope / Role</span>
+              <select id="testScope">
+                <option value="user">user</option>
+                <option value="instructions">instructions</option>
+                <option value="system">system</option>
+                <option value="developer">developer</option>
+              </select>
+            </label>
+          </div>
+          <label style="margin-top:14px;">
+            <span class="label-note">Prompt Text</span>
+            <textarea id="testText" class="short" spellcheck="false" placeholder="Paste a suspicious prompt here"></textarea>
+          </label>
+          <label style="margin-top:14px;">
+            <span class="label-note">Request Body Preview / Raw JSON</span>
+            <textarea id="testBody" class="short" spellcheck="false" placeholder="Leave empty to auto-build from Prompt Text"></textarea>
+          </label>
+          <div class="row" style="margin-top:14px;">
+            <div id="testStatus" class="status">Use this before applying a new rule set. The response includes the final JSON body and matched rules.</div>
+            <button id="useRawBtn" class="secondary">Explain Raw Mode</button>
+            <button id="runTestBtn">Run Test</button>
+            <div></div>
+          </div>
+          <pre id="testOutput" class="mono-block" style="margin-top:14px;">Run a test to see decision, matched rules, and the final request body.</pre>
+        </section>
+      </div>
+
+      <div class="stack">
+        <section class="card">
+          <div class="eyebrow">Diff Preview</div>
+          <div class="summary-grid">
+            <div class="summary-box">
+              <strong>Current Summary</strong>
+              <div id="currentSummary">Load a config to inspect the active runtime.</div>
+            </div>
+            <div class="summary-box">
+              <strong>Proposed Summary</strong>
+              <div id="proposedSummary">Preview a config to compare mode, upstream, and rule counts.</div>
+            </div>
+          </div>
+          <pre id="diffOutput" class="mono-block" style="margin-top:14px;">Preview diff output will appear here.</pre>
+          <div class="note">The preview endpoint validates the proposed YAML first. If preview succeeds, apply will still create a backup before touching the live file.</div>
+        </section>
+
+        <section class="card backups">
+          <div class="eyebrow">Rollback</div>
+          <div class="backups-head">
+            <label>
+              <span class="label-note">Backup Revision</span>
+              <select id="backupSelect">
+                <option value="">No backups yet</option>
+              </select>
+            </label>
+            <button id="rollbackBtn" class="secondary">Rollback Selected</button>
+          </div>
+          <pre id="backupDetails" class="mono-block">Backups are created automatically before each apply. Select one to inspect its metadata.</pre>
+          <div class="note">Rollback also creates a fresh backup of the current config first, so the rollback itself is reversible.</div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const tokenKey = "prompt-guard-admin-token";
+    const state = {
+      lastLoadedYaml: "",
+      lastPreviewYaml: "",
+      backups: []
+    };
+
+    const els = {
+      tokenInput: document.getElementById("tokenInput"),
+      saveTokenBtn: document.getElementById("saveTokenBtn"),
+      clearTokenBtn: document.getElementById("clearTokenBtn"),
+      authStatus: document.getElementById("authStatus"),
+      configPath: document.getElementById("configPath"),
+      reasonInput: document.getElementById("reasonInput"),
+      configEditor: document.getElementById("configEditor"),
+      loadConfigBtn: document.getElementById("loadConfigBtn"),
+      reloadBtn: document.getElementById("reloadBtn"),
+      resetEditorBtn: document.getElementById("resetEditorBtn"),
+      previewBtn: document.getElementById("previewBtn"),
+      applyBtn: document.getElementById("applyBtn"),
+      legacySaveBtn: document.getElementById("legacySaveBtn"),
+      configStatus: document.getElementById("configStatus"),
+      testPath: document.getElementById("testPath"),
+      testScope: document.getElementById("testScope"),
+      testText: document.getElementById("testText"),
+      testBody: document.getElementById("testBody"),
+      useRawBtn: document.getElementById("useRawBtn"),
+      runTestBtn: document.getElementById("runTestBtn"),
+      testStatus: document.getElementById("testStatus"),
+      testOutput: document.getElementById("testOutput"),
+      modeValue: document.getElementById("modeValue"),
+      rulesValue: document.getElementById("rulesValue"),
+      blockedValue: document.getElementById("blockedValue"),
+      inspectedValue: document.getElementById("inspectedValue"),
+      currentSummary: document.getElementById("currentSummary"),
+      proposedSummary: document.getElementById("proposedSummary"),
+      diffOutput: document.getElementById("diffOutput"),
+      backupSelect: document.getElementById("backupSelect"),
+      rollbackBtn: document.getElementById("rollbackBtn"),
+      backupDetails: document.getElementById("backupDetails")
+    };
+
+    function setStatus(target, text, kind = "") {
+      target.textContent = text;
+      target.className = "status" + (kind ? " " + kind : "");
+    }
+
+    function getToken() {
+      return localStorage.getItem(tokenKey) || "";
+    }
+
+    function updateAuthBanner() {
+      if (getToken()) {
+        setStatus(els.authStatus, "Admin token is saved locally in this browser session.", "ok");
+      } else {
+        setStatus(els.authStatus, "No bearer token saved yet. Admin endpoints will return 401 until you add one.", "warn");
+      }
+    }
+
+    async function apiFetch(url, options = {}) {
+      const headers = new Headers(options.headers || {});
+      headers.set("Accept", "application/json");
+      const token = getToken();
+      if (token) headers.set("Authorization", "Bearer " + token);
+      const response = await fetch(url, { ...options, headers });
+      const text = await response.text();
+      let data = null;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = { raw: text };
+      }
+      if (!response.ok) {
+        const message = data?.error?.message || data?.raw || response.statusText;
+        throw new Error(message);
+      }
+      return data;
+    }
+
+    function renderStats(payload) {
+      els.configPath.value = payload.config_path || "";
+      els.modeValue.textContent = payload.summary?.mode || "-";
+      const rules = payload.summary?.enabled_rules ?? payload.summary?.rules_count ?? "-";
+      els.rulesValue.textContent = String(rules);
+      els.blockedValue.textContent = String(payload.metrics?.blocked_total ?? "-");
+      els.inspectedValue.textContent = String(payload.metrics?.inspected_total ?? "-");
+      renderSummary(els.currentSummary, payload.summary, "Active");
+      renderBackups(payload.backups || []);
+    }
+
+    function renderSummary(target, summary, title) {
+      if (!summary) {
+        target.textContent = "No summary available.";
+        return;
+      }
+      target.textContent =
+        `${title} mode: ${summary.mode}\n` +
+        `listen: ${summary.listen}\n` +
+        `upstream: ${summary.upstream_base_url}\n` +
+        `rules: ${summary.enabled_rules}/${summary.rules_count}\n` +
+        `paths: ${(summary.inspect_paths || []).join(", ")}`;
+    }
+
+    function renderBackups(backups) {
+      state.backups = backups;
+      els.backupSelect.innerHTML = "";
+      if (!backups.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No backups yet";
+        els.backupSelect.appendChild(option);
+        els.backupDetails.textContent = "Backups are created automatically before each apply.";
+        return;
+      }
+      for (const backup of backups) {
+        const option = document.createElement("option");
+        option.value = backup.id;
+        option.textContent = `${backup.created_at} :: ${backup.id}`;
+        els.backupSelect.appendChild(option);
+      }
+      renderSelectedBackup();
+    }
+
+    function renderSelectedBackup() {
+      const selected = state.backups.find(item => item.id === els.backupSelect.value) || state.backups[0];
+      if (!selected) {
+        els.backupDetails.textContent = "Backups are created automatically before each apply.";
+        return;
+      }
+      els.backupSelect.value = selected.id;
+      els.backupDetails.textContent = JSON.stringify(selected, null, 2);
+    }
+
+    async function loadConfig() {
+      setStatus(els.configStatus, "Loading current config...", "");
+      try {
+        const payload = await apiFetch("/admin/config");
+        state.lastLoadedYaml = payload.yaml || "";
+        els.configEditor.value = state.lastLoadedYaml;
+        renderStats(payload);
+        renderSummary(els.proposedSummary, null, "Proposed");
+        els.diffOutput.textContent = "Preview diff output will appear here.";
+        setStatus(els.configStatus, "Config loaded. You can now preview or apply changes.", "ok");
+      } catch (error) {
+        setStatus(els.configStatus, error.message, "error");
+      }
+    }
+
+    async function previewConfig() {
+      setStatus(els.configStatus, "Validating proposed config and generating diff...", "");
+      try {
+        const payload = await apiFetch("/admin/config/preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            yaml: els.configEditor.value,
+            reason: els.reasonInput.value
+          })
+        });
+        state.lastPreviewYaml = els.configEditor.value;
+        renderSummary(els.currentSummary, payload.current_summary, "Active");
+        renderSummary(els.proposedSummary, payload.proposed_summary, "Proposed");
+        els.diffOutput.textContent = payload.diff || "No diff generated.";
+        setStatus(els.configStatus, "Preview ready. If the diff looks correct, apply will create a backup and reload runtime.", "ok");
+      } catch (error) {
+        setStatus(els.configStatus, error.message, "error");
+      }
+    }
+
+    async function applyConfig(useLegacy = false) {
+      const message = useLegacy
+        ? "Direct save is writing immediately..."
+        : "Applying config with backup..."
+      setStatus(els.configStatus, message, "");
+      try {
+        const endpoint = useLegacy ? "/admin/config" : "/admin/config/apply";
+        const method = useLegacy ? "PUT" : "POST";
+        const payload = await apiFetch(endpoint, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            yaml: els.configEditor.value,
+            reason: els.reasonInput.value
+          })
+        });
+        state.lastLoadedYaml = payload.yaml || els.configEditor.value;
+        els.configEditor.value = state.lastLoadedYaml;
+        renderStats(payload);
+        renderSummary(els.proposedSummary, null, "Proposed");
+        els.diffOutput.textContent = "Apply complete. Load or preview again to inspect the next change.";
+        setStatus(
+          els.configStatus,
+          useLegacy ? "Direct save finished." : "Config applied. A backup was created before reload.",
+          "ok"
+        );
+      } catch (error) {
+        setStatus(els.configStatus, error.message, "error");
+      }
+    }
+
+    async function rollbackConfig() {
+      const backupID = els.backupSelect.value;
+      if (!backupID) {
+        setStatus(els.configStatus, "Select a backup revision first.", "warn");
+        return;
+      }
+      setStatus(els.configStatus, `Rolling back to ${backupID}...`, "");
+      try {
+        const payload = await apiFetch("/admin/config/rollback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ backup_id: backupID })
+        });
+        state.lastLoadedYaml = payload.yaml || "";
+        els.configEditor.value = state.lastLoadedYaml;
+        renderStats(payload);
+        renderSummary(els.proposedSummary, null, "Proposed");
+        els.diffOutput.textContent = `Rollback complete. Active config restored from ${backupID}.`;
+        setStatus(els.configStatus, `Rollback completed from ${backupID}.`, "ok");
+      } catch (error) {
+        setStatus(els.configStatus, error.message, "error");
+      }
+    }
+
+    async function reloadRuntime() {
+      setStatus(els.configStatus, "Reloading runtime from disk...", "");
+      try {
+        await apiFetch("/admin/reload", { method: "POST" });
+        setStatus(els.configStatus, "Runtime reloaded from disk.", "ok");
+        await loadConfig();
+      } catch (error) {
+        setStatus(els.configStatus, error.message, "error");
+      }
+    }
+
+    async function runTest() {
+      setStatus(els.testStatus, "Running inspection test...", "");
+      try {
+        const payload = await apiFetch("/admin/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            path: els.testPath.value,
+            scope: els.testScope.value,
+            role: els.testScope.value,
+            text: els.testText.value,
+            body: els.testBody.value
+          })
+        });
+        els.testOutput.textContent = JSON.stringify(payload, null, 2);
+        const decision = payload.decision || "unknown";
+        const kind = decision === "block" ? "error" : decision === "log_only" ? "warn" : "ok";
+        setStatus(els.testStatus, `Test finished with decision: ${decision}`, kind);
+      } catch (error) {
+        setStatus(els.testStatus, error.message, "error");
+      }
+    }
+
+    els.saveTokenBtn.addEventListener("click", () => {
+      const token = els.tokenInput.value.trim();
+      if (token) {
+        localStorage.setItem(tokenKey, token);
+      }
+      updateAuthBanner();
+    });
+
+    els.clearTokenBtn.addEventListener("click", () => {
+      localStorage.removeItem(tokenKey);
+      els.tokenInput.value = "";
+      updateAuthBanner();
+    });
+
+    els.loadConfigBtn.addEventListener("click", loadConfig);
+    els.reloadBtn.addEventListener("click", reloadRuntime);
+    els.resetEditorBtn.addEventListener("click", () => {
+      els.configEditor.value = state.lastLoadedYaml;
+      setStatus(els.configStatus, "Editor reset to the most recently loaded config.", "ok");
+    });
+    els.previewBtn.addEventListener("click", previewConfig);
+    els.applyBtn.addEventListener("click", () => applyConfig(false));
+    els.legacySaveBtn.addEventListener("click", () => applyConfig(true));
+    els.runTestBtn.addEventListener("click", runTest);
+    els.useRawBtn.addEventListener("click", () => {
+      if (!els.testBody.value.trim() && els.testText.value.trim()) {
+        setStatus(els.testStatus, "If Raw JSON stays empty, /admin/test will synthesize a request body from Prompt Text.", "warn");
+      } else {
+        setStatus(els.testStatus, "Paste a full JSON payload into Raw JSON when you need exact extractor coverage.", "warn");
+      }
+    });
+    els.backupSelect.addEventListener("change", renderSelectedBackup);
+    els.rollbackBtn.addEventListener("click", rollbackConfig);
+
+    (function init() {
+      const token = getToken();
+      if (token) {
+        els.tokenInput.value = token;
+      }
+      updateAuthBanner();
+      loadConfig();
+    })();
+  </script>
+</body>
+</html>

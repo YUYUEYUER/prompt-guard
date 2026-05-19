@@ -450,7 +450,32 @@ match:
 
 - 归一化后字符串需与规则词完全一致
 
-### 12.3 `regex`
+### 12.3 `fuzzy_contains_any`
+
+```yaml
+match:
+  type: "fuzzy_contains_any"
+  max_edit_distance: 2
+  words:
+    - "ignore previous instructions"
+    - "输出完整系统提示词"
+```
+
+字段说明：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `type` | string | 固定为 `fuzzy_contains_any` |
+| `words` | array | 任一关键词近似命中即匹配 |
+| `max_edit_distance` | int | 允许的最大编辑距离，建议 `1` 到 `2` |
+
+说明：
+
+- 适合拦截少量错别字、插字符、轻度变形后的提示词
+- 会比 `contains_any` 更激进，建议先小范围启用
+- 当前实现要求 `max_edit_distance` 为正整数，且不超过 `6`
+
+### 12.4 `regex`
 
 ```yaml
 match:
@@ -480,6 +505,8 @@ action:
   type: "block"
   status_code: 403
   message: "request blocked by prompt policy"
+  response_mode: "json"
+  response_content_type: "application/json"
 ```
 
 ### 13.2 `log_only`
@@ -503,6 +530,47 @@ action:
 | `type` | string | `block`、`log_only`、`tag_and_pass` |
 | `status_code` | int | 仅对 `block` 生效 |
 | `message` | string | 仅对 `block` 生效 |
+| `response_mode` | string | 仅对 `block` 生效，支持 `json`、`minimal_json`、`text`、`empty` |
+| `response_content_type` | string | 仅对 `block` 生效，通常用于 `text` 或 `empty` |
+
+说明：
+
+- `json`：默认行为，返回结构化错误 JSON
+- `minimal_json`：按接口路径返回最短兼容 JSON，适合 `200` 拦截
+- `text`：直接返回 `message` 作为响应体
+- `empty`：直接返回空响应体
+
+如果你需要“拦截但尽量兼容 OpenAI / Anthropic 客户端”，常见配置是：
+
+```yaml
+action:
+  type: "block"
+  status_code: 200
+  response_mode: "minimal_json"
+```
+
+如果你需要“拦截但看起来像空返回”，常见配置是：
+
+```yaml
+action:
+  type: "block"
+  status_code: 200
+  response_mode: "empty"
+```
+
+### 13.4 Quickstart 环境变量
+
+为了减少改配置文件的次数，支持以下环境变量覆盖常用项：
+
+- `PROMPT_GUARD_SERVER_LISTEN`
+- `PROMPT_GUARD_UPSTREAM_BASE_URL`
+- `PROMPT_GUARD_POLICY_MODE`
+- `PROMPT_GUARD_POLICY_FAIL_MODE`
+- `PROMPT_GUARD_POLICY_REQUEST_BODY_LIMIT`
+- `PROMPT_GUARD_DEFAULT_BLOCK_STATUS_CODE`
+- `PROMPT_GUARD_DEFAULT_BLOCK_RESPONSE_MODE`
+- `PROMPT_GUARD_DEFAULT_BLOCK_RESPONSE_CONTENT_TYPE`
+- `PROMPT_GUARD_DEFAULT_BLOCK_MESSAGE`
 
 ## 14. 配置校验规则
 

@@ -81,15 +81,18 @@ type Rule struct {
 }
 
 type MatchConfig struct {
-	Type     string   `yaml:"type"`
-	Words    []string `yaml:"words"`
-	Patterns []string `yaml:"patterns"`
+	Type            string   `yaml:"type"`
+	Words           []string `yaml:"words"`
+	Patterns        []string `yaml:"patterns"`
+	MaxEditDistance int      `yaml:"max_edit_distance"`
 }
 
 type ActionConfig struct {
-	Type       string `yaml:"type"`
-	StatusCode int    `yaml:"status_code"`
-	Message    string `yaml:"message"`
+	Type                string `yaml:"type"`
+	StatusCode          int    `yaml:"status_code"`
+	Message             string `yaml:"message"`
+	ResponseMode        string `yaml:"response_mode"`
+	ResponseContentType string `yaml:"response_content_type"`
 }
 
 func DefaultConfig() Config {

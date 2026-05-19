@@ -29,6 +29,13 @@
 | `GET` | `/healthz` | 进程存活检查 |
 | `GET` | `/readyz` | 服务就绪检查 |
 | `GET` | `/metrics` | Prometheus 指标 |
+| `GET` | `/ui` | 图形化管理页 |
+| `GET` | `/admin/config` | 读取当前配置和摘要 |
+| `POST` | `/admin/config/preview` | 校验候选配置并返回 diff 预览 |
+| `POST` | `/admin/config/apply` | 自动备份后应用新配置 |
+| `POST` | `/admin/config/rollback` | 使用指定备份回滚配置 |
+| `PUT` | `/admin/config` | 保存配置并热重载 |
+| `POST` | `/admin/test` | 测试提示词或原始请求体是否命中规则 |
 | `POST` | `/admin/reload` | 重新加载配置和规则 |
 
 ## 3. HTTP 行为约束

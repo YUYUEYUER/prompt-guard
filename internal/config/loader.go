@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,6 +22,9 @@ func Load(path string) (*Config, error) {
 	cfg := DefaultConfig()
 	if err := yaml.Unmarshal(content, &cfg); err != nil {
 		return nil, fmt.Errorf("parse config yaml: %w", err)
+	}
+	if err := applyEnvOverrides(&cfg); err != nil {
+		return nil, err
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -93,6 +97,16 @@ func (c *Config) Validate() error {
 			if len(rule.Match.Words) == 0 {
 				return fmt.Errorf("rule %s must define match.words", rule.ID)
 			}
+		case "fuzzy_contains_any":
+			if len(rule.Match.Words) == 0 {
+				return fmt.Errorf("rule %s must define match.words", rule.ID)
+			}
+			if rule.Match.MaxEditDistance <= 0 {
+				return fmt.Errorf("rule %s must define a positive match.max_edit_distance", rule.ID)
+			}
+			if rule.Match.MaxEditDistance > 6 {
+				return fmt.Errorf("rule %s match.max_edit_distance must be <= 6", rule.ID)
+			}
 		case "regex":
 			if len(rule.Match.Patterns) == 0 {
 				return fmt.Errorf("rule %s must define match.patterns", rule.ID)
@@ -110,8 +124,18 @@ func (c *Config) Validate() error {
 			if rule.Action.StatusCode == 0 {
 				rule.Action.StatusCode = 403
 			}
-			if rule.Action.Message == "" {
+			switch rule.Action.ResponseMode {
+			case "":
+				rule.Action.ResponseMode = "json"
+			case "json", "text", "empty", "minimal_json":
+			default:
+				return fmt.Errorf("rule %s has unsupported action.response_mode %q", rule.ID, rule.Action.ResponseMode)
+			}
+			if rule.Action.ResponseMode == "json" && rule.Action.Message == "" {
 				rule.Action.Message = "request blocked by prompt policy"
+			}
+			if rule.Action.ResponseMode == "text" && rule.Action.ResponseContentType == "" {
+				rule.Action.ResponseContentType = "text/plain; charset=utf-8"
 			}
 		case "log_only", "tag_and_pass":
 		default:
@@ -153,4 +177,66 @@ func ParseByteSize(value string) (int64, error) {
 		return 0, fmt.Errorf("invalid byte size %q", value)
 	}
 	return raw, nil
+}
+
+func applyEnvOverrides(cfg *Config) error {
+	applyStringEnv("PROMPT_GUARD_SERVER_LISTEN", &cfg.Server.Listen)
+	applyStringEnv("PROMPT_GUARD_UPSTREAM_BASE_URL", &cfg.Upstream.BaseURL)
+	applyStringEnv("PROMPT_GUARD_POLICY_MODE", &cfg.Policy.Mode)
+	applyStringEnv("PROMPT_GUARD_POLICY_FAIL_MODE", &cfg.Policy.FailMode)
+	applyStringEnv("PROMPT_GUARD_POLICY_REQUEST_BODY_LIMIT", &cfg.Policy.RequestBodyLimit)
+
+	blockStatusCode, err := lookupOptionalIntEnv("PROMPT_GUARD_DEFAULT_BLOCK_STATUS_CODE")
+	if err != nil {
+		return err
+	}
+	blockResponseMode, hasBlockResponseMode := lookupEnv("PROMPT_GUARD_DEFAULT_BLOCK_RESPONSE_MODE")
+	blockResponseContentType, hasBlockResponseContentType := lookupEnv("PROMPT_GUARD_DEFAULT_BLOCK_RESPONSE_CONTENT_TYPE")
+	blockMessage, hasBlockMessage := lookupEnv("PROMPT_GUARD_DEFAULT_BLOCK_MESSAGE")
+
+	for i := range cfg.Rules {
+		if cfg.Rules[i].Action.Type != "block" {
+			continue
+		}
+		if blockStatusCode != nil {
+			cfg.Rules[i].Action.StatusCode = *blockStatusCode
+		}
+		if hasBlockResponseMode {
+			cfg.Rules[i].Action.ResponseMode = blockResponseMode
+		}
+		if hasBlockResponseContentType {
+			cfg.Rules[i].Action.ResponseContentType = blockResponseContentType
+		}
+		if hasBlockMessage {
+			cfg.Rules[i].Action.Message = blockMessage
+		}
+	}
+
+	return nil
+}
+
+func applyStringEnv(key string, target *string) {
+	if value, ok := lookupEnv(key); ok {
+		*target = value
+	}
+}
+
+func lookupOptionalIntEnv(key string) (*int, error) {
+	value, ok := lookupEnv(key)
+	if !ok {
+		return nil, nil
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return nil, fmt.Errorf("%s must be a valid integer: %w", key, err)
+	}
+	return &parsed, nil
+}
+
+func lookupEnv(key string) (string, bool) {
+	value, ok := os.LookupEnv(key)
+	if !ok {
+		return "", false
+	}
+	return strings.TrimSpace(value), true
 }

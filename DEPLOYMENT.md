@@ -7,6 +7,33 @@
 - Docker 容器部署
 - Linux systemd 部署
 
+## 0. Quickstart
+
+如果你想最快落地“前置提示词拦截，命中后直接返回最短兼容 JSON”，优先用：
+
+```bash
+docker compose -f deploy/docker-compose.quickstart.yml up -d --build
+```
+
+启动前通常只需要指定真实后端：
+
+```bash
+PROMPT_GUARD_UPSTREAM_BASE_URL=http://host.docker.internal:3000 docker compose -f deploy/docker-compose.quickstart.yml up -d --build
+```
+
+Quickstart 默认：
+
+- 使用 `configs/config.quickstart.yaml`
+- `policy.mode: enforce`
+- 默认开启模糊提示词匹配
+- 命中 `block` 规则时返回最短兼容 JSON
+- 阻断状态码为 `200`
+
+如果要改成别的状态码或恢复 JSON 错误体，可覆盖：
+
+- `PROMPT_GUARD_DEFAULT_BLOCK_STATUS_CODE`
+- `PROMPT_GUARD_DEFAULT_BLOCK_RESPONSE_MODE`
+
 部署目标保持不变：
 
 - 一个可执行文件或一个容器
@@ -35,6 +62,14 @@ cp configs/config.example.yaml configs/config.yaml
 - `policy.bypass`
 - `admin.bearer_token`，如果你准备启用 `/admin/reload`
 - `rules`
+
+如果你准备让 AI 或多人在线改规则，建议直接走：
+
+- `/admin/config/preview`
+- `/admin/config/apply`
+- `/admin/config/rollback`
+
+这样每次应用前都会先校验，应用时会自动生成备份。
 
 ## 2. Docker 部署
 

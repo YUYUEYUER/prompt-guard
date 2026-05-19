@@ -15,32 +15,38 @@ type Engine struct {
 }
 
 type compiledRule struct {
-	id         string
-	enabled    bool
-	priority   int
-	endpoints  map[string]struct{}
-	scopes     map[string]struct{}
-	matchType  string
-	words      []string
-	patterns   []*regexp.Regexp
-	actionType string
-	statusCode int
-	message    string
+	id                  string
+	enabled             bool
+	priority            int
+	endpoints           map[string]struct{}
+	scopes              map[string]struct{}
+	matchType           string
+	words               []string
+	patterns            []*regexp.Regexp
+	maxEditDistance     int
+	actionType          string
+	statusCode          int
+	message             string
+	responseMode        string
+	responseContentType string
 }
 
 func New(cfg *config.Config, normalize func(string) string) (*Engine, error) {
 	rules := make([]compiledRule, 0, len(cfg.Rules))
 	for _, rule := range cfg.Rules {
 		compiled := compiledRule{
-			id:         rule.ID,
-			enabled:    rule.Enabled,
-			priority:   rule.Priority,
-			endpoints:  toSet(rule.Endpoints),
-			scopes:     toSet(rule.Scopes),
-			matchType:  rule.Match.Type,
-			actionType: rule.Action.Type,
-			statusCode: rule.Action.StatusCode,
-			message:    rule.Action.Message,
+			id:                  rule.ID,
+			enabled:             rule.Enabled,
+			priority:            rule.Priority,
+			endpoints:           toSet(rule.Endpoints),
+			scopes:              toSet(rule.Scopes),
+			matchType:           rule.Match.Type,
+			maxEditDistance:     rule.Match.MaxEditDistance,
+			actionType:          rule.Action.Type,
+			statusCode:          rule.Action.StatusCode,
+			message:             rule.Action.Message,
+			responseMode:        rule.Action.ResponseMode,
+			responseContentType: rule.Action.ResponseContentType,
 		}
 		if !rule.Enabled {
 			rules = append(rules, compiled)
@@ -48,7 +54,7 @@ func New(cfg *config.Config, normalize func(string) string) (*Engine, error) {
 		}
 
 		switch rule.Match.Type {
-		case "contains_any", "exact":
+		case "contains_any", "exact", "fuzzy_contains_any":
 			for _, word := range rule.Match.Words {
 				compiled.words = append(compiled.words, normalize(word))
 			}
@@ -87,13 +93,15 @@ func (e *Engine) Evaluate(_ context.Context, fragments []model.TextFragment, met
 			}
 			if evidence, matched := rule.matches(fragment); matched {
 				results = append(results, model.MatchResult{
-					RuleID:       rule.id,
-					Action:       rule.actionType,
-					Scope:        fragment.Scope,
-					Path:         fragment.Path,
-					Evidence:     evidence,
-					StatusCode:   rule.statusCode,
-					ResponseBody: rule.message,
+					RuleID:              rule.id,
+					Action:              rule.actionType,
+					Scope:               fragment.Scope,
+					Path:                fragment.Path,
+					Evidence:            evidence,
+					StatusCode:          rule.statusCode,
+					ResponseBody:        rule.message,
+					ResponseMode:        rule.responseMode,
+					ResponseContentType: rule.responseContentType,
 				})
 			}
 		}
@@ -121,8 +129,118 @@ func (r compiledRule) matches(fragment model.TextFragment) (string, bool) {
 				return pattern.String(), true
 			}
 		}
+	case "fuzzy_contains_any":
+		for _, word := range r.words {
+			if evidence, matched := fuzzyContains(fragment.Normalized, word, r.maxEditDistance); matched {
+				return evidence, true
+			}
+		}
 	}
 	return "", false
+}
+
+func fuzzyContains(text string, pattern string, maxEditDistance int) (string, bool) {
+	if maxEditDistance < 0 || pattern == "" || text == "" {
+		return "", false
+	}
+	if strings.Contains(text, pattern) {
+		return pattern, true
+	}
+
+	textRunes := []rune(text)
+	patternRunes := []rune(pattern)
+	minWindow := len(patternRunes) - maxEditDistance
+	if minWindow < 1 {
+		minWindow = 1
+	}
+	maxWindow := len(patternRunes) + maxEditDistance
+	if maxWindow > len(textRunes) {
+		maxWindow = len(textRunes)
+	}
+	if minWindow > maxWindow {
+		return "", false
+	}
+
+	bestDistance := maxEditDistance + 1
+	bestEvidence := ""
+	for windowLen := minWindow; windowLen <= maxWindow; windowLen++ {
+		for start := 0; start+windowLen <= len(textRunes); start++ {
+			candidate := textRunes[start : start+windowLen]
+			distance, ok := levenshteinDistanceWithin(candidate, patternRunes, maxEditDistance)
+			if !ok || distance > maxEditDistance {
+				continue
+			}
+			if distance < bestDistance {
+				bestDistance = distance
+				bestEvidence = string(candidate)
+				if distance == 0 {
+					return bestEvidence, true
+				}
+			}
+		}
+	}
+
+	if bestEvidence == "" {
+		return "", false
+	}
+	return bestEvidence, true
+}
+
+func levenshteinDistanceWithin(a []rune, b []rune, maxEditDistance int) (int, bool) {
+	if abs(len(a)-len(b)) > maxEditDistance {
+		return 0, false
+	}
+
+	prev := make([]int, len(b)+1)
+	curr := make([]int, len(b)+1)
+	for j := range prev {
+		prev[j] = j
+	}
+
+	for i := 1; i <= len(a); i++ {
+		curr[0] = i
+		rowMin := curr[0]
+		for j := 1; j <= len(b); j++ {
+			cost := 1
+			if a[i-1] == b[j-1] {
+				cost = 0
+			}
+			curr[j] = min3(
+				prev[j]+1,
+				curr[j-1]+1,
+				prev[j-1]+cost,
+			)
+			if curr[j] < rowMin {
+				rowMin = curr[j]
+			}
+		}
+		if rowMin > maxEditDistance {
+			return 0, false
+		}
+		prev, curr = curr, prev
+	}
+
+	if prev[len(b)] > maxEditDistance {
+		return 0, false
+	}
+	return prev[len(b)], true
+}
+
+func min3(a int, b int, c int) int {
+	if a > b {
+		a = b
+	}
+	if a > c {
+		return c
+	}
+	return a
+}
+
+func abs(v int) int {
+	if v < 0 {
+		return -v
+	}
+	return v
 }
 
 func toSet(items []string) map[string]struct{} {

@@ -402,7 +402,7 @@ block > tag_and_pass > log_only > allow
 
 为了保持低延迟，规则能力有意收敛：
 
-- 第一版只支持 `contains_any`、`exact`、`regex`
+- 第一版支持 `contains_any`、`exact`、`regex`、`fuzzy_contains_any`
 - 不支持嵌套布尔表达式
 - 不支持跨字段上下文推理
 - 不支持语义模型调用

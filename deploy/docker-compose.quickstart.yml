@@ -1,0 +1,17 @@
+services:
+  prompt-guard:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command: ["-config", "/app/configs/config.quickstart.yaml"]
+    environment:
+      PROMPT_GUARD_UPSTREAM_BASE_URL: ${PROMPT_GUARD_UPSTREAM_BASE_URL:-http://host.docker.internal:3000}
+      PROMPT_GUARD_SERVER_LISTEN: ":8099"
+      PROMPT_GUARD_POLICY_MODE: ${PROMPT_GUARD_POLICY_MODE:-enforce}
+      PROMPT_GUARD_DEFAULT_BLOCK_STATUS_CODE: ${PROMPT_GUARD_DEFAULT_BLOCK_STATUS_CODE:-200}
+      PROMPT_GUARD_DEFAULT_BLOCK_RESPONSE_MODE: ${PROMPT_GUARD_DEFAULT_BLOCK_RESPONSE_MODE:-minimal_json}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${PROMPT_GUARD_PORT:-8099}:8099"
+    restart: unless-stopped

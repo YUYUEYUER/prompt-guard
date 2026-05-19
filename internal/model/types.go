@@ -44,13 +44,15 @@ type ExtractionResult struct {
 }
 
 type MatchResult struct {
-	RuleID       string
-	Action       string
-	Scope        string
-	Path         string
-	Evidence     string
-	StatusCode   int
-	ResponseBody string
+	RuleID              string
+	Action              string
+	Scope               string
+	Path                string
+	Evidence            string
+	StatusCode          int
+	ResponseBody        string
+	ResponseMode        string
+	ResponseContentType string
 }
 
 type InspectionResult struct {

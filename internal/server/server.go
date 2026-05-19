@@ -109,6 +109,10 @@ func (a *App) reload() error {
 	a.reloadMu.Lock()
 	defer a.reloadMu.Unlock()
 
+	return a.reloadLocked()
+}
+
+func (a *App) reloadLocked() error {
 	cfg, err := config.Load(a.configPath)
 	if err != nil {
 		return err
@@ -146,10 +150,17 @@ func (a *App) buildMux(state *runtimeState) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", a.handleHealth)
 	mux.HandleFunc("/readyz", a.handleReady)
+	mux.HandleFunc("/ui", a.handleUI)
+	mux.HandleFunc("/ui/", a.handleUI)
 	if state.cfg.Metrics.Enabled {
 		mux.Handle(state.cfg.Metrics.Path, a.metrics.Handler())
 	}
 	if state.cfg.Admin.Enabled {
+		mux.HandleFunc("/admin/config", a.handleConfig)
+		mux.HandleFunc("/admin/config/preview", a.handleConfigPreview)
+		mux.HandleFunc("/admin/config/apply", a.handleConfigApply)
+		mux.HandleFunc("/admin/config/rollback", a.handleConfigRollback)
+		mux.HandleFunc("/admin/test", a.handleTest)
 		mux.HandleFunc("/admin/reload", a.handleReload)
 	}
 	mux.HandleFunc("/", a.handleProxy)
@@ -329,7 +340,7 @@ func (a *App) handleProxy(w http.ResponseWriter, r *http.Request) {
 	if result.Decision == model.DecisionBlock {
 		a.metrics.blockedTotal.Add(1)
 		blocked := firstMatch(result)
-		writeBlockedResponse(w, requestID, blocked)
+		writeBlockedResponse(w, requestID, r.URL.Path, blocked)
 		return
 	}
 
@@ -351,15 +362,48 @@ func firstMatch(result *model.InspectionResult) model.MatchResult {
 		RuleID:       "unknown",
 		StatusCode:   http.StatusForbidden,
 		ResponseBody: "request blocked by prompt policy",
+		ResponseMode: "json",
 	}
 }
 
-func writeBlockedResponse(w http.ResponseWriter, requestID string, match model.MatchResult) {
+func writeBlockedResponse(w http.ResponseWriter, requestID string, path string, match model.MatchResult) {
 	statusCode := match.StatusCode
 	if statusCode == 0 {
 		statusCode = http.StatusForbidden
 	}
-	writeJSON(w, statusCode, map[string]any{
+	switch match.ResponseMode {
+	case "", "json":
+		writeJSON(w, statusCode, map[string]any{
+			"error": map[string]any{
+				"type":       "prompt_policy_violation",
+				"code":       "PROMPT_GUARD_BLOCKED",
+				"message":    match.ResponseBody,
+				"rule_id":    match.RuleID,
+				"request_id": requestID,
+			},
+		})
+	case "text":
+		contentType := match.ResponseContentType
+		if contentType == "" {
+			contentType = "text/plain; charset=utf-8"
+		}
+		w.Header().Set("Content-Type", contentType)
+		w.WriteHeader(statusCode)
+		_, _ = io.WriteString(w, match.ResponseBody)
+	case "empty":
+		if contentType := strings.TrimSpace(match.ResponseContentType); contentType != "" {
+			w.Header().Set("Content-Type", contentType)
+		}
+		w.WriteHeader(statusCode)
+	case "minimal_json":
+		writeJSON(w, statusCode, blockedCompatibilityPayload(path, requestID))
+	default:
+		writeJSON(w, statusCode, blockedErrorPayload(requestID, match))
+	}
+}
+
+func blockedErrorPayload(requestID string, match model.MatchResult) map[string]any {
+	return map[string]any{
 		"error": map[string]any{
 			"type":       "prompt_policy_violation",
 			"code":       "PROMPT_GUARD_BLOCKED",
@@ -367,7 +411,76 @@ func writeBlockedResponse(w http.ResponseWriter, requestID string, match model.M
 			"rule_id":    match.RuleID,
 			"request_id": requestID,
 		},
-	})
+	}
+}
+
+func blockedCompatibilityPayload(path string, requestID string) map[string]any {
+	now := time.Now().Unix()
+	switch path {
+	case "/v1/chat/completions":
+		return map[string]any{
+			"id":      "chatcmpl_" + requestID,
+			"object":  "chat.completion",
+			"created": now,
+			"model":   "prompt-guard-blocked",
+			"choices": []map[string]any{
+				{
+					"index": 0,
+					"message": map[string]any{
+						"role":    "assistant",
+						"content": "",
+					},
+					"finish_reason": "stop",
+				},
+			},
+		}
+	case "/v1/responses":
+		return map[string]any{
+			"id":     "resp_" + requestID,
+			"object": "response",
+			"status": "completed",
+			"model":  "prompt-guard-blocked",
+			"output": []map[string]any{
+				{
+					"id":     "msg_" + requestID,
+					"type":   "message",
+					"status": "completed",
+					"role":   "assistant",
+					"content": []map[string]any{
+						{
+							"type":        "output_text",
+							"text":        "",
+							"annotations": []any{},
+						},
+					},
+				},
+			},
+		}
+	case "/v1/messages":
+		return map[string]any{
+			"id":    "msg_" + requestID,
+			"type":  "message",
+			"role":  "assistant",
+			"model": "prompt-guard-blocked",
+			"content": []map[string]any{
+				{
+					"type": "text",
+					"text": "",
+				},
+			},
+			"stop_reason":   "end_turn",
+			"stop_sequence": nil,
+			"usage": map[string]any{
+				"input_tokens":  0,
+				"output_tokens": 0,
+			},
+		}
+	default:
+		return blockedErrorPayload(requestID, model.MatchResult{
+			ResponseBody: "request blocked by prompt policy",
+			RuleID:       "unknown",
+		})
+	}
 }
 
 func writeJSON(w http.ResponseWriter, statusCode int, payload any) {

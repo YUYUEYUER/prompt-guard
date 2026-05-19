@@ -20,6 +20,28 @@ func NewMetrics() *Metrics {
 	return &Metrics{}
 }
 
+type Snapshot struct {
+	RequestsTotal            uint64 `json:"requests_total"`
+	InspectedTotal           uint64 `json:"inspected_total"`
+	BlockedTotal             uint64 `json:"blocked_total"`
+	SkippedTotal             uint64 `json:"skipped_total"`
+	ExtractErrorsTotal       uint64 `json:"extract_errors_total"`
+	ProxyErrorsTotal         uint64 `json:"proxy_errors_total"`
+	InspectionDurationMicros uint64 `json:"inspection_duration_micros"`
+}
+
+func (m *Metrics) Snapshot() Snapshot {
+	return Snapshot{
+		RequestsTotal:            m.requestsTotal.Load(),
+		InspectedTotal:           m.inspectedTotal.Load(),
+		BlockedTotal:             m.blockedTotal.Load(),
+		SkippedTotal:             m.skippedTotal.Load(),
+		ExtractErrorsTotal:       m.extractErrorsTotal.Load(),
+		ProxyErrorsTotal:         m.proxyErrorsTotal.Load(),
+		InspectionDurationMicros: m.inspectionDurationMicros.Load(),
+	}
+}
+
 func (m *Metrics) Handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")

@@ -20,7 +20,7 @@ WORKDIR /app
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /out/prompt-guard /prompt-guard
-COPY configs/config.example.yaml /app/configs/config.example.yaml
+COPY configs /app/configs
 COPY configs/config.example.yaml /app/configs/config.yaml
 
 EXPOSE 8099
