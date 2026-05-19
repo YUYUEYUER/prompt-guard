@@ -4,6 +4,7 @@
 [![Go](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go)](https://go.dev/)
 [![Deploy](https://img.shields.io/badge/deploy-Docker%20%7C%20systemd-2496ED)](./DEPLOYMENT.md)
 [![Status](https://img.shields.io/badge/focus-lightweight%20gateway-2ea44f)](./README.md)
+[![Docs](https://img.shields.io/badge/docs-usage%20guide-6f42c1)](./USAGE.md)
 
 一个放在 `sub2api`、`new-api` 之前的轻量级提示词拦截网关。
 
@@ -122,6 +123,8 @@ flowchart TD
 
 ## 快速开始
 
+如果你想直接照着接到 `sub2api` 或 `new-api` 前面，优先看 [使用指南](./USAGE.md)。
+
 ### 1. 修改配置
 
 复制示例配置并调整后端地址：
@@ -187,6 +190,7 @@ rules:
 
 ## 文档
 
+- [使用指南](./USAGE.md)
 - [实现设计](./IMPLEMENTATION.md)
 - [接口定义](./API_SPEC.md)
 - [配置参考](./CONFIG_REFERENCE.md)
