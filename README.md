@@ -1,5 +1,6 @@
 # Prompt Guard
 
+[![linux.do](https://shorturl.at/ggSqS)](https://linux.do)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go)](https://go.dev/)
 [![Deploy](https://img.shields.io/badge/deploy-Docker%20%7C%20systemd-2496ED)](./DEPLOYMENT.md)
